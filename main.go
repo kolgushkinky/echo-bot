@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"os"
 
@@ -27,7 +26,7 @@ func main() {
 			text := update.Message.Text
 			userFirstName := update.Message.From.FirstName
 			userId := update.Message.Chat.ID
-			response := fmt.Sprintf("Ciao %s! Hai scritto: %s", userFirstName, text)
+			response := "Hi " + userFirstName + "! You wrote: " + text
 			bot.SendMessage(userId, response)
 			offset = update.ID + 1
 		}
