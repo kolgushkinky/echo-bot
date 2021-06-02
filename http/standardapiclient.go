@@ -22,6 +22,7 @@ func (c *stdTelegramAPIClient) Get(command string, v interface{}) error {
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 	return decodeResponseOnSuccess(resp.Body, v)
 }
 
@@ -31,6 +32,7 @@ func (c *stdTelegramAPIClient) Post(command string, data url.Values, v interface
 	if err != nil {
 		return err
 	}
+	defer resp.Body.Close()
 	return decodeResponseOnSuccess(resp.Body, v)
 }
 
