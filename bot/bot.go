@@ -1,6 +1,6 @@
 package bot
 
-import "github.com/nervigalilei/echo-bot/http"
+import "github.com/desotech-it/telegram-echo-bot/http"
 
 type Bot struct {
 	httpClient http.TelegramAPIClient

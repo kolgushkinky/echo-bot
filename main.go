@@ -5,8 +5,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/nervigalilei/echo-bot/bot"
-	"github.com/nervigalilei/echo-bot/http"
+	"github.com/desotech-it/telegram-echo-bot/bot"
+	"github.com/desotech-it/telegram-echo-bot/http"
 )
 
 func abortOnError(err error) {
