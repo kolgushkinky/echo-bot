@@ -16,9 +16,14 @@ func main() {
 		log.Fatal(err)
 	}
 
+	//Config
 	//where to resend messages
-	var chatID int64 = -1878673641
-	var channelUsername string = "@myBotTestGroupj"
+	var chatID int64 = -1001878673641
+	greeted := make(map[int64]bool)
+	greet := `
+Ну что, милые мои, поябедничать пришли? 
+Ну рассказывайте, не держите в себе, что воняет, где бычок нашли, кто ведро не вынес. И фотокарточку пришлите. Уж я этих нечистых проучу, мало не покажется!
+`
 
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
@@ -27,7 +32,20 @@ func main() {
 
 	for update := range updates {
 		if update.Message != nil {
+			privateChatID := update.Message.Chat.ID
 			text := update.Message.Text
+
+			
+			if !greeted[privateChatID] {
+				// Send the greeting message
+				greetingMsg := tgbotapi.NewMessage(privateChatID, greet)
+
+				_, err := bot.Send(greetingMsg)
+				if err != nil {
+					log.Println(err)
+				}
+				greeted[privateChatID] = true
+			}
 
 			if update.Message.Photo != nil {
 				photo := *update.Message.Photo
@@ -64,7 +82,6 @@ func main() {
 					BaseFile: tgbotapi.BaseFile{
 						BaseChat:    tgbotapi.BaseChat{
 							ChatID: chatID,
-							ChannelUsername: channelUsername,
 						},
 						File: tgbotapi.FileReader{
 							Name:   "image.jpg",
@@ -78,16 +95,19 @@ func main() {
 					comment := update.Message.Caption
 					msg.Caption = comment		
 				} 
+
 				_, err = bot.Send(msg)
 				if err != nil {
 					log.Println(err)
 				}
 				
 			} else {
-				_, err = bot.Send(tgbotapi.NewMessageToChannel(channelUsername, text))
-				if err != nil {
-					log.Println(err)
-				}
+				if text != "/start" {
+					_, err = bot.Send(tgbotapi.NewMessage(chatID, text))
+					if err != nil {
+						log.Println(err)
+					}
+				}		
 			}
 		}
 	}
