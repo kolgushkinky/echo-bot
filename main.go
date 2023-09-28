@@ -47,7 +47,16 @@ func main() {
 				greeted[privateChatID] = true
 			}
 
-			if update.Message.Photo != nil {
+			if update.Message.Sticker != nil {
+				sticker := *update.Message.Sticker
+				fileID := sticker.FileID
+				
+				msg := tgbotapi.NewStickerShare(chatID, fileID)
+				_, err := bot.Send(msg)
+				if err != nil {
+					log.Println(err)
+				}
+			} else if update.Message.Photo != nil {
 				photo := *update.Message.Photo
 				fileID := photo[len(photo)-1].FileID
 				fileConfig := tgbotapi.FileConfig{FileID: fileID}
