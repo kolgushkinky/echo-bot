@@ -49,7 +49,7 @@ func main() {
 	updates, err := bot.GetUpdatesChan(u)
 
 	for update := range updates {
-		if update.Message != nil {
+		if update.Message != nil && update.Message.ReplyToMessage == nil {
 			privateChatID := update.Message.Chat.ID
 			text := update.Message.Text
 
