@@ -7,23 +7,41 @@ import (
 	"image"
 	"image/jpeg"
 	"bytes"
+	"os"
+    "encoding/json"
 )
+
+type Config struct {
+    BotToken       string `json:"bot_token"`
+    ChatID         int64  `json:"chat_id"`
+    GreetingMessage string `json:"greeting_message"`
+}
 
 func main() {
 
-	bot, err := tgbotapi.NewBotAPI("6153779033:AAH4uTyl22ftJ9ORIr880_CiZutQW6QtY3k")
+		file, err := os.Open("config.json")
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer file.Close()
+	
+		decoder := json.NewDecoder(file)
+
+		var config Config
+
+		if err := decoder.Decode(&config); err != nil {
+			log.Fatal(err)
+		}
+
+	bot, err := tgbotapi.NewBotAPI(config.BotToken)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	//Config
 	//where to resend messages
-	var chatID int64 = -1001878673641
-	greeted := make(map[int64]bool)
-	greet := `
-Ну что, милые мои, поябедничать пришли? 
-Ну рассказывайте, не держите в себе, что воняет, где бычок нашли, кто ведро не вынес. И фотокарточку пришлите. Уж я этих нечистых проучу, мало не покажется!
-`
+	var chatID int64 = config.ChatID
+	//greeted := make(map[int64]bool)
+	greet := config.GreetingMessage
 
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
@@ -34,18 +52,6 @@ func main() {
 		if update.Message != nil {
 			privateChatID := update.Message.Chat.ID
 			text := update.Message.Text
-
-			
-			if !greeted[privateChatID] {
-				// Send the greeting message
-				greetingMsg := tgbotapi.NewMessage(privateChatID, greet)
-
-				_, err := bot.Send(greetingMsg)
-				if err != nil {
-					log.Println(err)
-				}
-				greeted[privateChatID] = true
-			}
 
 			if update.Message.Sticker != nil {
 				sticker := *update.Message.Sticker
@@ -116,7 +122,14 @@ func main() {
 					if err != nil {
 						log.Println(err)
 					}
-				}		
+				} else {
+					greetingMsg := tgbotapi.NewMessage(privateChatID, greet)
+
+					_, err := bot.Send(greetingMsg)
+					if err != nil {
+						log.Println(err)
+					}
+				}	
 			}
 		}
 	}
