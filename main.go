@@ -2,11 +2,11 @@ package main
 
 import (
 	"log"
-	"net/http"
-	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api"
-	"image"
-	"image/jpeg"
-	"bytes"
+	//"net/http"
+	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+	//"image"
+	//"image/jpeg"
+	//"bytes"
 	"os"
     "encoding/json"
 )
@@ -18,20 +18,20 @@ type Config struct {
 }
 
 func main() {
-
-		file, err := os.Open("config.json")
-		if err != nil {
-			log.Fatal(err)
-		}
-		defer file.Close()
 	
-		decoder := json.NewDecoder(file)
+	file, err := os.Open("config.json")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
 
-		var config Config
+	decoder := json.NewDecoder(file)
 
-		if err := decoder.Decode(&config); err != nil {
-			log.Fatal(err)
-		}
+	var config Config
+
+	if err := decoder.Decode(&config); err != nil {
+		log.Fatal(err)
+	}
 
 	bot, err := tgbotapi.NewBotAPI(config.BotToken)
 	if err != nil {
@@ -40,30 +40,35 @@ func main() {
 
 	//where to resend messages
 	var chatID int64 = config.ChatID
-	//greeted := make(map[int64]bool)
-	greet := config.GreetingMessage
 
 	u := tgbotapi.NewUpdate(0)
 	u.Timeout = 60
 
-	updates, err := bot.GetUpdatesChan(u)
+	updates := bot.GetUpdatesChan(u)
 
+	//currentMediaGroupID := ""
+	grouped := false
+	media := []interface{}{}
 	for update := range updates {
+		log.Println("New update")
+		
 		if update.Message != nil && update.Message.ReplyToMessage == nil {
-			privateChatID := update.Message.Chat.ID
-			text := update.Message.Text
-
-			if update.Message.Sticker != nil {
-				sticker := *update.Message.Sticker
-				fileID := sticker.FileID
+			
+			if update.Message.MediaGroupID != "" {
+				grouped = true
+			    /*
+				if update.Message.MediaGroupID == currentMediaGroupID {
+					continue
+				} else {
+					currentMediaGroupID = update.Message.MediaGroupID
+				} 
+				*/
 				
-				msg := tgbotapi.NewStickerShare(chatID, fileID)
-				_, err := bot.Send(msg)
-				if err != nil {
-					log.Println(err)
-				}
-			} else if update.Message.Photo != nil {
-				photo := *update.Message.Photo
+				log.Println("MediaGroupID not empty ", update.Message.MediaGroupID)
+				
+				// Construct media group from received media files
+				
+				photo := update.Message.Photo
 				fileID := photo[len(photo)-1].FileID
 				fileConfig := tgbotapi.FileConfig{FileID: fileID}
 				file, err := bot.GetFile(fileConfig)
@@ -71,66 +76,33 @@ func main() {
 					log.Println(err)
 					continue
 				}
-
+		
 				fileURL := file.Link(bot.Token)
-				response, err := http.Get(fileURL)
-				if err != nil {
-					log.Println(err)
-					continue
-				}
-				defer response.Body.Close()
-
-				img, _, err := image.Decode(response.Body)
-				if err != nil {
-					log.Println(err)
-					continue
-				}
-
-				var buf bytes.Buffer
-				err = jpeg.Encode(&buf, img, nil)
-				if err != nil {
-				log.Println(err)
-				continue
-				}
-
-				msg := tgbotapi.PhotoConfig{
-					BaseFile: tgbotapi.BaseFile{
-						BaseChat:    tgbotapi.BaseChat{
-							ChatID: chatID,
-						},
-						File: tgbotapi.FileReader{
-							Name:   "image.jpg",
-							Reader: &buf,
-							Size:   int64(buf.Len()),
-						},
-					},
-				}
-
-				if update.Message.Caption != "" {
-					comment := update.Message.Caption
-					msg.Caption = comment		
-				} 
-
-				_, err = bot.Send(msg)
-				if err != nil {
-					log.Println(err)
-				}
+				log.Println(fileURL, "is file url")
 				
-			} else {
-				if text != "/start" {
-					_, err = bot.Send(tgbotapi.NewMessage(chatID, text))
-					if err != nil {
-						log.Println(err)
-					}
-				} else {
-					greetingMsg := tgbotapi.NewMessage(privateChatID, greet)
+				media = append(media, tgbotapi.NewInputMediaPhoto(tgbotapi.FileID(fileID)))
+			
 
-					_, err := bot.Send(greetingMsg)
+			} else {
+
+				if grouped {
+					grouped = false
+					config := tgbotapi.NewMediaGroup(chatID, media)
+					log.Println("sending media", media)
+					// Send the media group
+					_, err = bot.SendMediaGroup(config)
 					if err != nil {
 						log.Println(err)
 					}
-				}	
+					media = []interface{}{}
+				} else {
+					copyMessageConfig := tgbotapi.NewCopyMessage(chatID, update.Message.Chat.ID, update.Message.MessageID)
+					_, err := bot.CopyMessage(copyMessageConfig)
+					if err != nil {
+						log.Println(err)
+					}
+				}
 			}
-		}
+		}	
 	}
 }
