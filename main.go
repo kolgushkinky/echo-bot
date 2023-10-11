@@ -2,6 +2,7 @@ package main
 
 import (
 	"log"
+	"time"
 	//"net/http"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	//"image"
@@ -18,7 +19,7 @@ type Config struct {
 }
 
 func main() {
-	
+
 	file, err := os.Open("config.json")
 	if err != nil {
 		log.Fatal(err)
@@ -38,7 +39,7 @@ func main() {
 		log.Fatal(err)
 	}
 
-	//where to resend messages
+	// where to resend messages
 	var chatID int64 = config.ChatID
 
 	u := tgbotapi.NewUpdate(0)
@@ -49,52 +50,35 @@ func main() {
 	//currentMediaGroupID := ""
 	grouped := false
 	media := []interface{}{}
-	for update := range updates {
-		log.Println("New update")
-		
-		if update.Message != nil && update.Message.ReplyToMessage == nil {
-			
-			if update.Message.MediaGroupID != "" {
-				grouped = true
-			    /*
-				if update.Message.MediaGroupID == currentMediaGroupID {
-					continue
-				} else {
-					currentMediaGroupID = update.Message.MediaGroupID
-				} 
-				*/
-				
-				log.Println("MediaGroupID not empty ", update.Message.MediaGroupID)
-				
-				// Construct media group from received media files
-				
-				photo := update.Message.Photo
-				fileID := photo[len(photo)-1].FileID
-				fileConfig := tgbotapi.FileConfig{FileID: fileID}
-				file, err := bot.GetFile(fileConfig)
-				if err != nil {
-					log.Println(err)
-					continue
-				}
-		
-				fileURL := file.Link(bot.Token)
-				log.Println(fileURL, "is file url")
-				
-				media = append(media, tgbotapi.NewInputMediaPhoto(tgbotapi.FileID(fileID)))
-			
+	// Initialize a timer for checking inactivity
+	inactivityTimer := time.NewTimer(time.Duration(u.Timeout/4) * time.Second)
 
-			} else {
+	for {
+		select {
+		case update := <-updates:
+			if update.Message != nil && update.Message.ReplyToMessage == nil {
+				if update.Message.MediaGroupID != "" {
+					grouped = true
+					log.Println("MediaGroupID not empty ", update.Message.MediaGroupID)
 
-				if grouped {
-					grouped = false
-					config := tgbotapi.NewMediaGroup(chatID, media)
-					log.Println("sending media", media)
-					// Send the media group
-					_, err = bot.SendMediaGroup(config)
+					// Construct media group from received media files
+					photo := update.Message.Photo
+					fileID := photo[len(photo)-1].FileID
+					fileConfig := tgbotapi.FileConfig{FileID: fileID}
+					file, err := bot.GetFile(fileConfig)
 					if err != nil {
 						log.Println(err)
+						continue
 					}
-					media = []interface{}{}
+
+					fileURL := file.Link(bot.Token)
+					log.Println(fileURL, "is file url")
+
+					mediaItem := tgbotapi.NewInputMediaPhoto(tgbotapi.FileID(fileID))
+					if update.Message.Caption != "" {
+						mediaItem.Caption = update.Message.Caption
+					}
+					media = append(media, mediaItem)
 				} else {
 					copyMessageConfig := tgbotapi.NewCopyMessage(chatID, update.Message.Chat.ID, update.Message.MessageID)
 					_, err := bot.CopyMessage(copyMessageConfig)
@@ -103,6 +87,22 @@ func main() {
 					}
 				}
 			}
-		}	
+
+		case <-inactivityTimer.C:
+			// Timer expired, send pending media group (if any)
+			if grouped {
+				grouped = false
+				config := tgbotapi.NewMediaGroup(chatID, media)
+				log.Println("sending media", media)
+				// Send the media group
+				_, err := bot.SendMediaGroup(config)
+				if err != nil {
+					log.Println(err)
+				}
+				media = []interface{}{}
+			}
+			// Reset the inactivity timer
+			inactivityTimer.Reset(time.Duration(u.Timeout/4) * time.Second)
+		}
 	}
 }
