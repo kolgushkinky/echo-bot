@@ -61,24 +61,45 @@ func main() {
 					grouped = true
 					log.Println("MediaGroupID not empty ", update.Message.MediaGroupID)
 
-					// Construct media group from received media files
-					photo := update.Message.Photo
-					fileID := photo[len(photo)-1].FileID
-					fileConfig := tgbotapi.FileConfig{FileID: fileID}
-					file, err := bot.GetFile(fileConfig)
-					if err != nil {
-						log.Println(err)
-						continue
-					}
+					switch {
+					case update.Message.Photo != nil :
+						// Construct media group from received media files
+						photo := update.Message.Photo
+						fileID := photo[len(photo)-1].FileID
+						fileConfig := tgbotapi.FileConfig{FileID: fileID}
+						file, err := bot.GetFile(fileConfig)
+						if err != nil {
+							log.Println(err)
+							continue
+						}
 
-					fileURL := file.Link(bot.Token)
-					log.Println(fileURL, "is file url")
+						fileURL := file.Link(bot.Token)
+						log.Println(fileURL, "is file url")
 
-					mediaItem := tgbotapi.NewInputMediaPhoto(tgbotapi.FileID(fileID))
-					if update.Message.Caption != "" {
-						mediaItem.Caption = update.Message.Caption
+						mediaItem := tgbotapi.NewInputMediaPhoto(tgbotapi.FileID(fileID))
+						if update.Message.Caption != "" {
+							mediaItem.Caption = update.Message.Caption
+						}
+						media = append(media, mediaItem)
+					
+					case update.Message.Video != nil :
+						log.Println("Adding video to media group")
+						videoItem := *update.Message.Video
+						fileID := videoItem.FileID
+						
+						mediaItem := tgbotapi.NewInputMediaVideo(tgbotapi.FileID(fileID))
+						if update.Message.Caption != "" {
+							mediaItem.Caption = update.Message.Caption
+						}
+						media = append(media, mediaItem)
+					default:
+						copyMessageConfig := tgbotapi.NewCopyMessage(chatID, update.Message.Chat.ID, update.Message.MessageID)
+						_, err := bot.CopyMessage(copyMessageConfig)
+						if err != nil {
+							log.Println(err)
+						}
 					}
-					media = append(media, mediaItem)
+					
 				} else {
 					copyMessageConfig := tgbotapi.NewCopyMessage(chatID, update.Message.Chat.ID, update.Message.MessageID)
 					_, err := bot.CopyMessage(copyMessageConfig)
