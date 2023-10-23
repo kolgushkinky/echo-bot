@@ -1,0 +1,5 @@
+{
+    "bot_token": "BOT_TOKEN",
+    "chat_id": -0,
+    "greeting_message": "Hi, I'm the bot to resend your message to the exact channel"
+}

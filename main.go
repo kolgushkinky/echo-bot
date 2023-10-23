@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log/slog"
 	"log"
 	"time"
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
@@ -15,6 +16,10 @@ type Config struct {
 }
 
 func main() {
+
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+
+    slog.SetDefault(logger)
 
 	file, err := os.Open("config.json")
 	if err != nil {
@@ -34,6 +39,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	slog.Info("Bot started")
 
 	// where to resend messages
 	var chatID int64 = config.ChatID
