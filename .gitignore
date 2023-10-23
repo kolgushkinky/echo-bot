@@ -14,3 +14,6 @@
 __debug_bin
 echo-bot
 telegram-echo-bot
+
+### secrets ###
+config.json
